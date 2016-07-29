@@ -5,8 +5,12 @@
   <vendor email="bullsgl@gmail.com" url="https://github.com/clilystudio">ClilyStudio</vendor>
 
   <description><![CDATA[
-      Enter short description for your plugin here.<br>
-      <em>most HTML tags may be used</em>
+<html>
+  <b>1.0</b> (07/30/2016)
+  <ul>
+    <li>Initial release</li>
+  </ul>
+</html>
     ]]></description>
 
   <change-notes><![CDATA[
@@ -16,7 +20,7 @@
   </change-notes>
 
   <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
-  <idea-version since-build="143.0"/>
+  <idea-version since-build="123.72"/>
 
   <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
        on how to target different products -->
@@ -30,6 +34,11 @@
 
   <actions>
     <!-- Add your actions here -->
+    <action id="InitViewsByLayoutId" class="com.clilystudio.plugins.aca.action.InitViewsByLayoutIdAction"
+            text="Init Views By LayoutId" description="Generate init views code by layout id" icon="/icons/aca.png">
+      <add-to-group group-id="GenerateGroup" />
+      <keyboard-shortcut keymap="$default" first-keystroke="shift ctrl X"/>
+    </action>
   </actions>
 
 </idea-plugin>
