@@ -32,6 +32,11 @@ public class Utils {
 
     private static final Logger log = Logger.getInstance(Utils.class);
 
+    public static final String ADD_PREFIX = "androidcodeassistant_add_prefix";
+    public static final String PREFIX = "androidcodeassistant_prefix";
+    public static final String VIEWHOLDER_CLASS_NAME = "androidcodeassistant_viewholder_class_name";
+    public static final String TRIM_TYPE = "androidcodeassistant_trim_type";
+
     /**
      * Is using Android SDK?
      */
@@ -274,18 +279,46 @@ public class Utils {
      * @return
      */
     public static String getPrefix() {
-//        if (PropertiesComponent.getInstance().isValueSet(Settings.PREFIX)) {
-//            return PropertiesComponent.getInstance().getValue(Settings.PREFIX);
-//        } else {
+        if (PropertiesComponent.getInstance().isValueSet(PREFIX)) {
+            return PropertiesComponent.getInstance().getValue(PREFIX);
+        } else {
             CodeStyleSettingsManager manager = CodeStyleSettingsManager.getInstance();
             CodeStyleSettings settings = manager.getCurrentSettings();
-            return settings.FIELD_NAME_PREFIX;
-//        }
+            if (!isEmptyString(settings.FIELD_NAME_PREFIX)) {
+                return settings.FIELD_NAME_PREFIX;
+            } else {
+                return "m";
+            }
+        }
     }
-//
-//    public static String getViewHolderClassName() {
-//        return PropertiesComponent.getInstance().getValue(Settings.VIEWHOLDER_CLASS_NAME, "ViewHolder");
-//    }
+
+    public static void setPrefix(String prefix) {
+        PropertiesComponent.getInstance().setValue(PREFIX, prefix);
+    }
+
+    public static boolean isAddPrefix() {
+        return PropertiesComponent.getInstance().getBoolean(ADD_PREFIX, false);
+    }
+
+    public static void setAddPrefix(boolean isAddPrefix) {
+        PropertiesComponent.getInstance().setValue(ADD_PREFIX, isAddPrefix);
+    }
+
+    public static String getViewHolderClassName() {
+        return PropertiesComponent.getInstance().getValue(VIEWHOLDER_CLASS_NAME, "ViewHolder");
+    }
+
+    public static void setViewHolderClassName(String viewHolderClassName) {
+        PropertiesComponent.getInstance().setValue(VIEWHOLDER_CLASS_NAME, viewHolderClassName);
+    }
+
+    public static boolean isTrimType() {
+        return PropertiesComponent.getInstance().getBoolean(TRIM_TYPE, false);
+    }
+
+    public static void setTrimType(boolean isTrimType) {
+        PropertiesComponent.getInstance().setValue(TRIM_TYPE, isTrimType);
+    }
 
     public static int getInjectCount(ArrayList<Element> elements) {
         int cnt = 0;

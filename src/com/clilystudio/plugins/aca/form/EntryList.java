@@ -1,6 +1,7 @@
 package com.clilystudio.plugins.aca.form;
 
 import com.clilystudio.plugins.aca.model.Element;
+import com.clilystudio.plugins.aca.utils.Utils;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
@@ -8,28 +9,28 @@ import com.intellij.ui.components.JBScrollPane;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 
 public class EntryList extends JPanel {
 
-    protected Project mProject;
-    protected Editor mEditor;
-    protected ArrayList<Element> mElements = new ArrayList<Element>();
-    protected ArrayList<Entry> mEntries = new ArrayList<Entry>();
-    protected boolean mCreateHolder = false;
-    protected String mPrefix = null;
-    protected IConfirmListener mConfirmListener;
-    protected ICancelListener mCancelListener;
-    protected JCheckBox mPrefixCheck;
-    protected JTextField mPrefixValue;
-    protected JLabel mPrefixLabel;
-    protected JCheckBox mHolderCheck;
-    protected JLabel mHolderLabel;
-    protected JButton mConfirm;
-    protected JButton mCancel;
-    protected EntryHeader mEntryHeader;
+    private Project mProject;
+    private Editor mEditor;
+    private ArrayList<Element> mElements = new ArrayList<>();
+    private ArrayList<Entry> mEntries = new ArrayList<>();
+    private boolean mIsViewHolder = false;
+    private String mPrefix = null;
+    private IConfirmListener mConfirmListener;
+    private ICancelListener mCancelListener;
+    private JCheckBox mHolderCheck;
+    private JCheckBox mPrefixCheck;
+    private JTextField mPrefixValue;
+    private JCheckBox mTrimCheck;
+    private JButton mConfirmBtn;
+    private EntryHeader mEntryHeader;
 
     private OnCheckBoxStateChangedListener allCheckListener = new OnCheckBoxStateChangedListener() {
         @Override
@@ -59,20 +60,69 @@ public class EntryList extends JPanel {
     public EntryList(Project project, Editor editor, ArrayList<Element> elements, boolean createHolder, IConfirmListener confirmListener, ICancelListener cancelListener) {
         mProject = project;
         mEditor = editor;
-        mCreateHolder = createHolder;
+        mIsViewHolder = createHolder;
         mConfirmListener = confirmListener;
         mCancelListener = cancelListener;
         if (elements != null) {
             mElements.addAll(elements);
         }
-        setPreferredSize(new Dimension(640, 360));
+        setPreferredSize(new Dimension(800, 400));
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
 
+        addHeader();
         addInjections();
         addButtons();
     }
 
-    protected void addInjections() {
+    private void addHeader() {
+        mHolderCheck = new JCheckBox();
+        mHolderCheck.setPreferredSize(new Dimension(28, 26));
+        mHolderCheck.setSelected(mIsViewHolder);
+        mHolderCheck.addChangeListener(new CheckHolderListener());
+
+        JLabel holderLabel = new JLabel();
+        holderLabel.setText("Is ViewHolder");
+
+        mTrimCheck = new JCheckBox();
+        mTrimCheck.setPreferredSize(new Dimension(28, 26));
+        mTrimCheck.setSelected(Utils.isTrimType());
+        mTrimCheck.addChangeListener(new CheckTrimListener());
+
+        JLabel trimLabel = new JLabel();
+        trimLabel.setText("Trim Id Type");
+
+        mPrefixCheck = new JCheckBox();
+        mPrefixCheck.setPreferredSize(new Dimension(28, 26));
+        mPrefixCheck.setSelected(Utils.isAddPrefix());
+        mPrefixCheck.addChangeListener(new CheckPrefixListener());
+
+        JLabel prefixLabel = new JLabel();
+        prefixLabel.setText("Add Prefix");
+
+        mPrefixValue = new JTextField(Utils.getPrefix(), 10);
+        mPrefixValue.setPreferredSize(new Dimension(40, 26));
+        mPrefixValue.setEnabled(mPrefixCheck.isSelected());
+        mPrefixValue.getDocument().addDocumentListener(new DocumentPrefixListener());
+        JPanel holderPanel = new JPanel();
+        holderPanel.setLayout(new BoxLayout(holderPanel, BoxLayout.LINE_AXIS));
+        holderPanel.setMaximumSize(new Dimension(Short.MAX_VALUE, 54));
+        holderPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        holderPanel.add(mHolderCheck);
+        holderPanel.add(holderLabel);
+        holderPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        holderPanel.add(mTrimCheck);
+        holderPanel.add(trimLabel);
+        holderPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        holderPanel.add(mPrefixCheck);
+        holderPanel.add(prefixLabel);
+        holderPanel.add(Box.createRigidArea(new Dimension(4, 0)));
+        holderPanel.add(mPrefixValue);
+        holderPanel.add(Box.createHorizontalGlue());
+        add(holderPanel, BorderLayout.NORTH);
+        refresh();
+    }
+
+    private void addInjections() {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.PAGE_AXIS));
         contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -112,75 +162,40 @@ public class EntryList extends JPanel {
         refresh();
     }
 
-    protected void addButtons() {
-		mPrefixCheck = new JCheckBox();
-		mPrefixCheck.setPreferredSize(new Dimension(32, 26));
-		mPrefixCheck.addChangeListener(new CheckPrefixListener());
+    private void addButtons() {
+        JButton cancelBtn = new JButton();
+        cancelBtn.setAction(new CancelAction());
+        cancelBtn.setPreferredSize(new Dimension(120, 40));
+        cancelBtn.setText("Cancel");
+        cancelBtn.setVisible(true);
 
-//		mPrefixValue = new JTextField(Utils.getPrefix(), 10);
-//		mPrefixValue.setPreferredSize(new Dimension(40, 26));
-
-		mPrefixLabel = new JLabel();
-		mPrefixLabel.setText("Field name prefix");
-
-		JPanel prefixPanel = new JPanel();
-		prefixPanel.setLayout(new BoxLayout(prefixPanel, BoxLayout.LINE_AXIS));
-		prefixPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10));
-		prefixPanel.add(mPrefixCheck);
-//		prefixPanel.add(mPrefixValue);
-		prefixPanel.add(mPrefixLabel);
-		prefixPanel.add(Box.createHorizontalGlue());
-		add(prefixPanel, BorderLayout.PAGE_END);
-
-        mHolderCheck = new JCheckBox();
-        mHolderCheck.setPreferredSize(new Dimension(32, 26));
-        mHolderCheck.setSelected(mCreateHolder);
-        mHolderCheck.addChangeListener(new CheckHolderListener());
-
-        mHolderLabel = new JLabel();
-        mHolderLabel.setText("Create ViewHolder");
-
-        JPanel holderPanel = new JPanel();
-        holderPanel.setLayout(new BoxLayout(holderPanel, BoxLayout.LINE_AXIS));
-        holderPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10));
-        holderPanel.add(mHolderCheck);
-        holderPanel.add(mHolderLabel);
-        holderPanel.add(Box.createHorizontalGlue());
-        add(holderPanel, BorderLayout.PAGE_END);
-
-        mCancel = new JButton();
-        mCancel.setAction(new CancelAction());
-        mCancel.setPreferredSize(new Dimension(120, 26));
-        mCancel.setText("Cancel");
-        mCancel.setVisible(true);
-
-        mConfirm = new JButton();
-        mConfirm.setAction(new ConfirmAction());
-        mConfirm.setPreferredSize(new Dimension(120, 26));
-        mConfirm.setText("Confirm");
-        mConfirm.setVisible(true);
+        mConfirmBtn = new JButton();
+        mConfirmBtn.setAction(new ConfirmAction());
+        mConfirmBtn.setPreferredSize(new Dimension(120, 40));
+        mConfirmBtn.setText("Confirm");
+        mConfirmBtn.setVisible(true);
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.LINE_AXIS));
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         buttonPanel.add(Box.createHorizontalGlue());
-        buttonPanel.add(mCancel);
+        buttonPanel.add(cancelBtn);
         buttonPanel.add(Box.createRigidArea(new Dimension(10, 0)));
-        buttonPanel.add(mConfirm);
+        buttonPanel.add(mConfirmBtn);
 
         add(buttonPanel, BorderLayout.PAGE_END);
         refresh();
     }
 
-    protected void refresh() {
+    private void refresh() {
         revalidate();
 
-        if (mConfirm != null) {
-            mConfirm.setVisible(mElements.size() > 0);
+        if (mConfirmBtn != null) {
+            mConfirmBtn.setVisible(mElements.size() > 0);
         }
     }
 
-    protected boolean checkValidity() {
+    private boolean checkValidity() {
         boolean valid = true;
 
         for (Element element : mElements) {
@@ -193,19 +208,19 @@ public class EntryList extends JPanel {
     }
 
     public JButton getConfirmButton() {
-        return mConfirm;
+        return mConfirmBtn;
     }
     // classes
 
-    public class CheckHolderListener implements ChangeListener {
+    private class CheckHolderListener implements ChangeListener {
 
         @Override
         public void stateChanged(ChangeEvent event) {
-            mCreateHolder = mHolderCheck.isSelected();
+             mIsViewHolder = mHolderCheck.isSelected();
         }
     }
 
-    public class CheckPrefixListener implements ChangeListener {
+    private class CheckPrefixListener implements ChangeListener {
 
         @Override
         public void stateChanged(ChangeEvent event) {
@@ -216,27 +231,70 @@ public class EntryList extends JPanel {
             } else {
                 mPrefix = null;
             }
+            boolean isTrimType = mTrimCheck.isSelected();
+            for (final Entry entry : mEntries) {
+                entry.resetFieldName(mPrefix, isTrimType);
+            }
         }
     }
 
-    protected class ConfirmAction extends AbstractAction {
+    private class DocumentPrefixListener implements DocumentListener {
+
+        @Override
+        public void insertUpdate(DocumentEvent e) {
+            OnPrefixChanged();
+        }
+
+        @Override
+        public void removeUpdate(DocumentEvent e) {
+            OnPrefixChanged();
+        }
+
+        @Override
+        public void changedUpdate(DocumentEvent e) {
+            OnPrefixChanged();
+        }
+    }
+
+    private void OnPrefixChanged() {
+        if (mPrefixCheck.isSelected() && mPrefixValue.getText().length() > 0) {
+            mPrefix = mPrefixValue.getText();
+        } else {
+            mPrefix = null;
+        }
+        boolean isTrimType = mTrimCheck.isSelected();
+        for (final Entry entry : mEntries) {
+            entry.resetFieldName(mPrefix, isTrimType);
+        }
+    }
+
+    private class CheckTrimListener implements ChangeListener {
+
+        @Override
+        public void stateChanged(ChangeEvent event) {
+            boolean isTrimType = mTrimCheck.isSelected();
+            for (final Entry entry : mEntries) {
+                entry.resetFieldName(mPrefix, isTrimType);
+            }
+        }
+    }
+
+    private class ConfirmAction extends AbstractAction {
 
         public void actionPerformed(ActionEvent event) {
             boolean valid = checkValidity();
 
-            for (Entry entry : mEntries) {
-                entry.syncElement();
-            }
+            mEntries.forEach(Entry::syncElement);
 
             if (valid) {
                 if (mConfirmListener != null) {
-                    mConfirmListener.onConfirm(mProject, mEditor, mElements, mPrefix, mCreateHolder);
+                    mConfirmListener.onConfirm(mProject, mEditor, mElements, mPrefix, mIsViewHolder);
                 }
             }
         }
     }
 
-    protected class CancelAction extends AbstractAction {
+    private class CancelAction extends AbstractAction {
 
         public void actionPerformed(ActionEvent event) {
             if (mCancelListener != null) {

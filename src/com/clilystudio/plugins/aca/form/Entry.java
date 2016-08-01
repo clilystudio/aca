@@ -81,6 +81,10 @@ public class Entry extends JPanel {
         checkState();
     }
 
+    public void resetFieldName(String prefix, boolean isTrimType) {
+        mName.setText(mElement.getFieldName(prefix, isTrimType));
+    }
+
     public Element syncElement() {
         mElement.used = mCheck.isSelected();
         mElement.isClick = mEvent.isSelected();

@@ -36,7 +36,7 @@ public class EntryHeader extends JPanel {
         mEvent.setPreferredSize(new Dimension(100, 26));
         mEvent.setFont(new Font(mEvent.getFont().getFontName(), Font.BOLD, mEvent.getFont().getSize()));
 
-        mName = new JLabel("Variable Name");
+        mName = new JLabel("Field Name");
         mName.setPreferredSize(new Dimension(100, 26));
         mName.setFont(new Font(mName.getFont().getFontName(), Font.BOLD, mName.getFont().getSize()));
 
@@ -49,7 +49,7 @@ public class EntryHeader extends JPanel {
         add(mID);
         add(Box.createRigidArea(new Dimension(12, 0)));
         add(mEvent);
-        add(Box.createRigidArea(new Dimension(22, 0)));
+        add(Box.createRigidArea(new Dimension(12, 0)));
         add(mName);
         add(Box.createHorizontalGlue());
     }
