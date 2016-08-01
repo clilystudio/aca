@@ -88,10 +88,10 @@ public class Utils {
     public static PsiFile findLayoutResource(PsiElement element) {
         log.info("Finding layout resource for element: " + element.getText());
         if (element == null) {
-            return null; // nothing to be used
+            return null; // nothing to be selected
         }
         if (!(element instanceof PsiIdentifier)) {
-            return null; // nothing to be used
+            return null; // nothing to be selected
         }
 
         PsiElement layout = element.getParent().getFirstChild();
@@ -133,13 +133,13 @@ public class Utils {
         // TODO - we have a problem here - we still can have multiple layouts (some coming from a dependency)
         // we need to resolve R class properly and find the proper layout for the R class
         for (PsiFile file : files) {
-            log.info("Resolved layout resource file for name [" + name + "]: " + file.getVirtualFile());
+            log.info("Resolved layout resource file for className [" + name + "]: " + file.getVirtualFile());
         }
         return files[0];
     }
 
     /**
-     * Try to find layout XML file by name
+     * Try to find layout XML file by className
      *
      * @param file
      * @param project
@@ -206,17 +206,12 @@ public class Utils {
                     }
 
                     // check if there is defined custom class
-                    String name = tag.getName();
+                    String className = tag.getName();
                     XmlAttribute clazz = tag.getAttribute("class", null);
                     if (clazz != null) {
-                        name = clazz.getValue();
+                        className = clazz.getValue();
                     }
-
-                    try {
-                        subViewItems.add(new SubViewItem(name, value));
-                    } catch (IllegalArgumentException e) {
-                        // TODO log
-                    }
+                    subViewItems.add(new SubViewItem(className, value));
                 }
             }
         });
@@ -225,7 +220,7 @@ public class Utils {
     }
 
     /**
-     * Get layout name from XML identifier (@layout/....)
+     * Get layout className from XML identifier (@layout/....)
      *
      * @param layout
      * @return
@@ -281,7 +276,7 @@ public class Utils {
     }
 
     /**
-     * Load field name prefix from code style
+     * Load field className prefix from code style
      *
      * @return
      */
@@ -330,7 +325,7 @@ public class Utils {
     public static int getInjectCount(ArrayList<SubViewItem> subViewItems) {
         int cnt = 0;
         for (SubViewItem subViewItem : subViewItems) {
-            if (subViewItem.used) {
+            if (subViewItem.isSelected()) {
                 cnt++;
             }
         }
@@ -340,7 +335,7 @@ public class Utils {
     public static int getClickCount(ArrayList<SubViewItem> subViewItems) {
         int cnt = 0;
         for (SubViewItem subViewItem : subViewItems) {
-            if (subViewItem.isClick) {
+            if (subViewItem.hasClickEvent()) {
                 cnt++;
             }
         }
@@ -362,7 +357,7 @@ public class Utils {
      *
      * @param project    Project
      * @param psiElement SubViewItem for which we check the class
-     * @param className  Class name of the searched class
+     * @param className  Class className of the searched class
      * @return True if the class is present on the classpath
      * @since 1.3
      */
@@ -381,7 +376,7 @@ public class Utils {
      * This is only fallback for wrongly setup projects.
      *
      * @param project   Project
-     * @param className Class name of the searched class
+     * @param className Class className of the searched class
      * @return True if the class is present on the classpath
      * @since 1.3.1
      */

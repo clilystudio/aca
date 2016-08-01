@@ -6,97 +6,72 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SubViewItem {
-
-    // constants
     private static final Pattern sIdPattern = Pattern.compile("@\\+?(android:)?id/([^$]+)$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern sValidityPattern = Pattern.compile("^([a-zA-Z_\\$][\\w\\$]*)$", Pattern.CASE_INSENSITIVE);
-    public String id;
-    public boolean isAndroidNS = false;
-    public String nameFull; // element name with package
-    public String name; // element name
-    public String fieldName; // name of variable
-    public boolean isValid = false;
-    public boolean used = true;
-    public boolean isClick = true;
+    private static final Pattern sValidityPattern = Pattern.compile("^([a-zA-Z_$][\\w$]*)$", Pattern.CASE_INSENSITIVE);
+    private String mId;
+    private boolean mIsAndroidNS = false;
+    private String mClassFull;
+    private String mClassName;
+    private boolean mSelected = true;
+    private boolean mClickEvent = true;
     private String mPrefix;
     private boolean mIsTrimType;
 
-    public SubViewItem(String name, String id) {
+    public SubViewItem(String className, String id) {
         if (Utils.isAddPrefix()) {
             mPrefix = Utils.getPrefix();
         } else {
             mPrefix = null;
         }
         mIsTrimType = Utils.isTrimType();
-        // id
+
         final Matcher matcher = sIdPattern.matcher(id);
         if (matcher.find() && matcher.groupCount() > 0) {
-            this.id = matcher.group(2);
-
+            this.mId = matcher.group(2);
             String androidNS = matcher.group(1);
-            this.isAndroidNS = !(androidNS == null || androidNS.length() == 0);
+            this.mIsAndroidNS = !(androidNS == null || androidNS.length() == 0);
         }
 
-        // name
-        String[] packages = name.split("\\.");
+        // mClassName
+        String[] packages = className.split("\\.");
         if (packages.length > 1) {
-            this.nameFull = name;
-            this.name = packages[packages.length - 1];
+            this.mClassFull = className;
+            this.mClassName = packages[packages.length - 1];
         } else {
-            this.nameFull = null;
-            this.name = name;
+            this.mClassFull = null;
+            this.mClassName = className;
         }
-
-        this.fieldName = getFieldName();
     }
 
-    /**
-     * Create full ID for using in layout XML files
-     *
-     * @return
-     */
+    public String getId() {
+        return mId;
+    }
+
     public String getFullID() {
         StringBuilder fullID = new StringBuilder();
         String rPrefix;
 
-        if (isAndroidNS) {
-            rPrefix = "android.R.id.";
+        if (mIsAndroidNS) {
+            rPrefix = "android.R.mId.";
         } else {
-            rPrefix = "R.id.";
+            rPrefix = "R.mId.";
         }
 
         fullID.append(rPrefix);
-        fullID.append(id);
+        fullID.append(mId);
 
         return fullID.toString();
     }
 
-    /**
-     * Generate field name if it's not done yet
-     *
-     * @return
-     */
     public String getFieldName() {
         return getFieldName(mPrefix, mIsTrimType);
-    }
-
-    /**
-     * Check validity of field name
-     *
-     * @return
-     */
-    public boolean checkValidity() {
-        Matcher matcher = sValidityPattern.matcher(fieldName);
-        isValid = matcher.find();
-
-        return isValid;
     }
 
     public String getFieldName(String prefix, boolean isTrimType) {
         mPrefix = prefix;
         mIsTrimType = isTrimType;
 
-        String[] words = this.id.split("_");
+        String[] words = this.mId.split("_");
         StringBuilder sb = new StringBuilder();
 
         if (!Utils.isEmptyString(prefix)) {
@@ -117,5 +92,39 @@ public class SubViewItem {
         }
 
         return sb.toString();
+    }
+
+    public boolean isAndroidNS() {
+        return mIsAndroidNS;
+    }
+
+    public String getClassFull() {
+        return mClassFull;
+    }
+
+    public String getClassName() {
+        return mClassName;
+    }
+
+    public boolean isSelected() {
+        return mSelected;
+    }
+
+    public void setSelected(boolean selected) {
+        this.mSelected = selected;
+    }
+
+    public boolean hasClickEvent() {
+        return mClickEvent;
+    }
+
+    public void setClickEvent(boolean clickEvent) {
+        this.mClickEvent = clickEvent;
+    }
+
+    public boolean checkValidity() {
+        String fieldName = getFieldName();
+        Matcher matcher = sValidityPattern.matcher(fieldName);
+        return matcher.find();
     }
 }

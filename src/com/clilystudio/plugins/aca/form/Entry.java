@@ -43,13 +43,13 @@ public class Entry extends JPanel {
         mEvent = new JCheckBox();
         mEvent.setPreferredSize(new Dimension(100, 26));
 
-        mType = new JLabel(mSubViewItem.name);
+        mType = new JLabel(mSubViewItem.getClassName());
         mType.setPreferredSize(new Dimension(100, 26));
 
-        mID = new JLabel(mSubViewItem.id);
+        mID = new JLabel(mSubViewItem.getId());
         mID.setPreferredSize(new Dimension(100, 26));
 
-        mName = new JTextField(mSubViewItem.fieldName, 10);
+        mName = new JTextField(mSubViewItem.getFieldName(), 10);
         mNameDefaultColor = mName.getBackground();
         mName.setPreferredSize(new Dimension(100, 26));
         mName.addFocusListener(new FocusListener() {
@@ -85,9 +85,8 @@ public class Entry extends JPanel {
     }
 
     public SubViewItem syncElement() {
-        mSubViewItem.used = mCheck.isSelected();
-        mSubViewItem.isClick = mEvent.isSelected();
-        mSubViewItem.fieldName = mName.getText();
+        mSubViewItem.setSelected(mCheck.isSelected());
+        mSubViewItem.setClickEvent(mEvent.isSelected());
 
         if (mSubViewItem.checkValidity()) {
             mName.setBackground(mNameDefaultColor);

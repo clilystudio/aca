@@ -115,14 +115,6 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
         closeDialog();
     }
 
-    private void closeDialog() {
-        if (mDialog == null) {
-            return;
-        }
-        mDialog.setVisible(false);
-        mDialog.dispose();
-    }
-
     @Override
     public void onConfirm(Project project, Editor editor, ArrayList<SubViewItem> subViewItems, String fieldNamePrefix, boolean createHolder) {
         PsiFile file = PsiUtilBase.getPsiFileInEditor(editor, project);
@@ -139,6 +131,14 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
         } else { // just notify user about no element selected
             Utils.showInfoNotification(project, "No injection was selected");
         }
+    }
+
+    private void closeDialog() {
+        if (mDialog == null) {
+            return;
+        }
+        mDialog.setVisible(false);
+        mDialog.dispose();
     }
 
     private class InjectWriter extends WriteCommandAction.Simple {
@@ -192,7 +192,7 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
             if (Utils.getClickCount(mSubViewItems) == 1) {
                 method.append("@butterknife.OnClick(");
                 for (SubViewItem subViewItem : mSubViewItems) {
-                    if (subViewItem.isClick) {
+                    if (subViewItem.hasClickEvent()) {
                         method.append(subViewItem.getFullID() + ")");
                     }
                 }
@@ -201,7 +201,7 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
                 method.append("@butterknife.OnClick({");
                 int currentCount = 0;
                 for (SubViewItem subViewItem : mSubViewItems) {
-                    if (subViewItem.isClick) {
+                    if (subViewItem.hasClickEvent()) {
                         currentCount++;
                         if (currentCount == Utils.getClickCount(mSubViewItems)) {
                             method.append(subViewItem.getFullID() + "})");
@@ -212,7 +212,7 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
                 }
                 method.append("public void onClick(android.view.View view) {switch (view.getId()){");
                 for (SubViewItem subViewItem : mSubViewItems) {
-                    if (subViewItem.isClick) {
+                    if (subViewItem.hasClickEvent()) {
                         method.append("case " + subViewItem.getFullID() + ": break;");
                     }
                 }
@@ -240,9 +240,9 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
 
             // add injections into view holder
             for (SubViewItem subViewItem : mSubViewItems) {
-                if (subViewItem.used) {
+                if (subViewItem.isSelected()) {
                     String rPrefix;
-                    if (subViewItem.isAndroidNS) {
+                    if (subViewItem.isAndroidNS()) {
                         rPrefix = "android.R.id.";
                     } else {
                         rPrefix = "R.id.";
@@ -255,16 +255,16 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
 //                    injection.append(rPrefix);
 //                    injection.append(subViewItem.id);
 //                    injection.append(") ");
-                    if (subViewItem.nameFull != null && subViewItem.nameFull.length() > 0) {
+                    if (subViewItem.getClassFull() != null && subViewItem.getClassFull().length() > 0) {
                         // custom package+class
-                        injection.append(subViewItem.nameFull);
-                    } else if (Definitions.paths.containsKey(subViewItem.name)) {
+                        injection.append(subViewItem.getClassFull());
+                    } else if (Definitions.paths.containsKey(subViewItem.getClassName())) {
                         // listed class
-                        injection.append(Definitions.paths.get(subViewItem.name));
+                        injection.append(Definitions.paths.get(subViewItem.getClassName()));
                     } else {
                         // android.widget
                         injection.append("android.widget.");
-                        injection.append(subViewItem.name);
+                        injection.append(subViewItem.getClassName());
                     }
                     injection.append(" ");
                     injection.append(subViewItem.getFieldName());
@@ -298,18 +298,18 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
         protected void generateFields() {
             // add injections into main class
             for (SubViewItem subViewItem : mSubViewItems) {
-                if (subViewItem.used) {
+                if (subViewItem.isSelected()) {
                     StringBuilder injection = new StringBuilder();
-                    if (subViewItem.nameFull != null && subViewItem.nameFull.length() > 0) {
+                    if (subViewItem.getClassFull() != null && subViewItem.getClassFull().length() > 0) {
                         // custom package+class
-                        injection.append(subViewItem.nameFull);
-                    } else if (Definitions.paths.containsKey(subViewItem.name)) {
+                        injection.append(subViewItem.getClassFull());
+                    } else if (Definitions.paths.containsKey(subViewItem.getClassName())) {
                         // listed class
-                        injection.append(Definitions.paths.get(subViewItem.name));
+                        injection.append(Definitions.paths.get(subViewItem.getClassName()));
                     } else {
                         // android.widget
                         injection.append("android.widget.");
-                        injection.append(subViewItem.name);
+                        injection.append(subViewItem.getClassName());
                     }
                     injection.append(" ");
                     injection.append(subViewItem.getFieldName());
