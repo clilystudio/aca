@@ -1,6 +1,6 @@
 package com.clilystudio.plugins.aca.form;
 
-import com.clilystudio.plugins.aca.model.Element;
+import com.clilystudio.plugins.aca.model.SubViewItem;
 import com.clilystudio.plugins.aca.utils.Utils;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
@@ -19,7 +19,7 @@ public class EntryList extends JPanel {
 
     private Project mProject;
     private Editor mEditor;
-    private ArrayList<Element> mElements = new ArrayList<>();
+    private ArrayList<SubViewItem> mSubViewItems = new ArrayList<>();
     private ArrayList<Entry> mEntries = new ArrayList<>();
     private boolean mIsViewHolder = false;
     private String mPrefix = null;
@@ -57,14 +57,14 @@ public class EntryList extends JPanel {
         }
     };
 
-    public EntryList(Project project, Editor editor, ArrayList<Element> elements, boolean createHolder, IConfirmListener confirmListener, ICancelListener cancelListener) {
+    public EntryList(Project project, Editor editor, ArrayList<SubViewItem> subViewItems, boolean createHolder, IConfirmListener confirmListener, ICancelListener cancelListener) {
         mProject = project;
         mEditor = editor;
         mIsViewHolder = createHolder;
         mConfirmListener = confirmListener;
         mCancelListener = cancelListener;
-        if (elements != null) {
-            mElements.addAll(elements);
+        if (subViewItems != null) {
+            mSubViewItems.addAll(subViewItems);
         }
         setPreferredSize(new Dimension(800, 400));
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
@@ -136,8 +136,8 @@ public class EntryList extends JPanel {
 
         int cnt = 0;
         boolean selectAllCheck = true;
-        for (Element element : mElements) {
-            Entry entry = new Entry(this, element);
+        for (SubViewItem subViewItem : mSubViewItems) {
+            Entry entry = new Entry(this, subViewItem);
             entry.setListener(singleCheckListener);
 
             if (cnt > 0) {
@@ -191,15 +191,15 @@ public class EntryList extends JPanel {
         revalidate();
 
         if (mConfirmBtn != null) {
-            mConfirmBtn.setVisible(mElements.size() > 0);
+            mConfirmBtn.setVisible(mSubViewItems.size() > 0);
         }
     }
 
     private boolean checkValidity() {
         boolean valid = true;
 
-        for (Element element : mElements) {
-            if (!element.checkValidity()) {
+        for (SubViewItem subViewItem : mSubViewItems) {
+            if (!subViewItem.checkValidity()) {
                 valid = false;
             }
         }
@@ -288,7 +288,7 @@ public class EntryList extends JPanel {
 
             if (valid) {
                 if (mConfirmListener != null) {
-                    mConfirmListener.onConfirm(mProject, mEditor, mElements, mPrefix, mIsViewHolder);
+                    mConfirmListener.onConfirm(mProject, mEditor, mSubViewItems, mPrefix, mIsViewHolder);
                 }
             }
         }

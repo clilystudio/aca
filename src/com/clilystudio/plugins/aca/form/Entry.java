@@ -1,6 +1,6 @@
 package com.clilystudio.plugins.aca.form;
 
-import com.clilystudio.plugins.aca.model.Element;
+import com.clilystudio.plugins.aca.model.SubViewItem;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
@@ -8,12 +8,11 @@ import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
-import java.util.ArrayList;
 
 public class Entry extends JPanel {
 
     protected EntryList mParent;
-    protected Element mElement;
+    protected SubViewItem mSubViewItem;
     protected OnCheckBoxStateChangedListener mListener;
     // ui
     protected JCheckBox mCheck;
@@ -32,8 +31,8 @@ public class Entry extends JPanel {
         this.mListener = onStateChangedListener;
     }
 
-    public Entry(EntryList parent, Element element) {
-        mElement = element;
+    public Entry(EntryList parent, SubViewItem subViewItem) {
+        mSubViewItem = subViewItem;
         mParent = parent;
 
         mCheck = new JCheckBox();
@@ -44,13 +43,13 @@ public class Entry extends JPanel {
         mEvent = new JCheckBox();
         mEvent.setPreferredSize(new Dimension(100, 26));
 
-        mType = new JLabel(mElement.name);
+        mType = new JLabel(mSubViewItem.name);
         mType.setPreferredSize(new Dimension(100, 26));
 
-        mID = new JLabel(mElement.id);
+        mID = new JLabel(mSubViewItem.id);
         mID.setPreferredSize(new Dimension(100, 26));
 
-        mName = new JTextField(mElement.fieldName, 10);
+        mName = new JTextField(mSubViewItem.fieldName, 10);
         mNameDefaultColor = mName.getBackground();
         mName.setPreferredSize(new Dimension(100, 26));
         mName.addFocusListener(new FocusListener() {
@@ -82,21 +81,21 @@ public class Entry extends JPanel {
     }
 
     public void resetFieldName(String prefix, boolean isTrimType) {
-        mName.setText(mElement.getFieldName(prefix, isTrimType));
+        mName.setText(mSubViewItem.getFieldName(prefix, isTrimType));
     }
 
-    public Element syncElement() {
-        mElement.used = mCheck.isSelected();
-        mElement.isClick = mEvent.isSelected();
-        mElement.fieldName = mName.getText();
+    public SubViewItem syncElement() {
+        mSubViewItem.used = mCheck.isSelected();
+        mSubViewItem.isClick = mEvent.isSelected();
+        mSubViewItem.fieldName = mName.getText();
 
-        if (mElement.checkValidity()) {
+        if (mSubViewItem.checkValidity()) {
             mName.setBackground(mNameDefaultColor);
         } else {
             mName.setBackground(mNameErrorColor);
         }
 
-        return mElement;
+        return mSubViewItem;
     }
 
     private void checkState() {

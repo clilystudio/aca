@@ -1,6 +1,6 @@
 package com.clilystudio.plugins.aca.utils;
 
-import com.clilystudio.plugins.aca.model.Element;
+import com.clilystudio.plugins.aca.model.SubViewItem;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
@@ -20,13 +20,13 @@ import com.intellij.psi.codeStyle.CodeStyleSettingsManager;
 import com.intellij.psi.search.EverythingGlobalScope;
 import com.intellij.psi.search.FilenameIndex;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlTag;
 import com.intellij.ui.awt.RelativePoint;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.regex.Matcher;
 
 public class Utils {
 
@@ -70,6 +70,13 @@ public class Utils {
         }
 
         return findLayoutResource(candidateB);
+    }
+
+    public static PsiMethod getMethodFromCaret(Editor editor, PsiFile file) {
+        int offset = editor.getCaretModel().getOffset();
+        PsiElement element = file.findElementAt(offset);
+        if (element == null) return null;
+        return PsiTreeUtil.getParentOfType(element, PsiMethod.class);
     }
 
     /**
@@ -151,10 +158,10 @@ public class Utils {
      * @param file
      * @return
      */
-    public static ArrayList<Element> getIDsFromLayout(final PsiFile file) {
-        final ArrayList<Element> elements = new ArrayList<Element>();
+    public static ArrayList<SubViewItem> getIDsFromLayout(final PsiFile file) {
+        final ArrayList<SubViewItem> subViewItems = new ArrayList<SubViewItem>();
 
-        return getIDsFromLayout(file, elements);
+        return getIDsFromLayout(file, subViewItems);
     }
 
     /**
@@ -163,7 +170,7 @@ public class Utils {
      * @param file
      * @return
      */
-    public static ArrayList<Element> getIDsFromLayout(final PsiFile file, final ArrayList<Element> elements) {
+    public static ArrayList<SubViewItem> getIDsFromLayout(final PsiFile file, final ArrayList<SubViewItem> subViewItems) {
         file.accept(new XmlRecursiveElementVisitor() {
 
             @Override
@@ -181,7 +188,7 @@ public class Utils {
                             PsiFile include = findLayoutResource(file, project, getLayoutName(layout.getValue()));
 
                             if (include != null) {
-                                getIDsFromLayout(include, elements);
+                                getIDsFromLayout(include, subViewItems);
 
                                 return;
                             }
@@ -206,7 +213,7 @@ public class Utils {
                     }
 
                     try {
-                        elements.add(new Element(name, value));
+                        subViewItems.add(new SubViewItem(name, value));
                     } catch (IllegalArgumentException e) {
                         // TODO log
                     }
@@ -214,7 +221,7 @@ public class Utils {
             }
         });
 
-        return elements;
+        return subViewItems;
     }
 
     /**
@@ -320,20 +327,20 @@ public class Utils {
         PropertiesComponent.getInstance().setValue(TRIM_TYPE, isTrimType);
     }
 
-    public static int getInjectCount(ArrayList<Element> elements) {
+    public static int getInjectCount(ArrayList<SubViewItem> subViewItems) {
         int cnt = 0;
-        for (Element element : elements) {
-            if (element.used) {
+        for (SubViewItem subViewItem : subViewItems) {
+            if (subViewItem.used) {
                 cnt++;
             }
         }
         return cnt;
     }
 
-    public static int getClickCount(ArrayList<Element> elements) {
+    public static int getClickCount(ArrayList<SubViewItem> subViewItems) {
         int cnt = 0;
-        for (Element element : elements) {
-            if (element.isClick) {
+        for (SubViewItem subViewItem : subViewItems) {
+            if (subViewItem.isClick) {
                 cnt++;
             }
         }
@@ -354,7 +361,7 @@ public class Utils {
      * Check whether classpath of a module that corresponds to a {@link PsiElement} contains given class.
      *
      * @param project    Project
-     * @param psiElement Element for which we check the class
+     * @param psiElement SubViewItem for which we check the class
      * @param className  Class name of the searched class
      * @return True if the class is present on the classpath
      * @since 1.3

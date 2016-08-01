@@ -5,7 +5,7 @@ import com.clilystudio.plugins.aca.utils.Utils;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Element {
+public class SubViewItem {
 
     // constants
     private static final Pattern sIdPattern = Pattern.compile("@\\+?(android:)?id/([^$]+)$", Pattern.CASE_INSENSITIVE);
@@ -21,7 +21,7 @@ public class Element {
     private String mPrefix;
     private boolean mIsTrimType;
 
-    public Element(String name, String id) {
+    public SubViewItem(String name, String id) {
         if (Utils.isAddPrefix()) {
             mPrefix = Utils.getPrefix();
         } else {
@@ -76,7 +76,7 @@ public class Element {
      *
      * @return
      */
-    private String getFieldName() {
+    public String getFieldName() {
         return getFieldName(mPrefix, mIsTrimType);
     }
 
@@ -93,6 +93,9 @@ public class Element {
     }
 
     public String getFieldName(String prefix, boolean isTrimType) {
+        mPrefix = prefix;
+        mIsTrimType = isTrimType;
+
         String[] words = this.id.split("_");
         StringBuilder sb = new StringBuilder();
 

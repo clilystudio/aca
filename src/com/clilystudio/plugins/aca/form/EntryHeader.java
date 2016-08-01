@@ -24,7 +24,7 @@ public class EntryHeader extends JPanel {
         mAllCheck.setSelected(false);
         mAllCheck.addItemListener(new AllCheckListener());
 
-        mType = new JLabel("Element");
+        mType = new JLabel("SubViewItem");
         mType.setPreferredSize(new Dimension(100, 26));
         mType.setFont(new Font(mType.getFont().getFontName(), Font.BOLD, mType.getFont().getSize()));
 
