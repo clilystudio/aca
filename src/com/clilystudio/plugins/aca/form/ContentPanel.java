@@ -4,6 +4,7 @@ import com.clilystudio.plugins.aca.model.SubViewItem;
 import com.clilystudio.plugins.aca.utils.Utils;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
+import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 
 import javax.swing.*;
@@ -12,7 +13,7 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
-import java.awt.event.ActionEvent;
+import java.awt.event.*;
 import java.util.ArrayList;
 
 public class ContentPanel extends JPanel {
@@ -20,7 +21,7 @@ public class ContentPanel extends JPanel {
     private Project mProject;
     private Editor mEditor;
     private ArrayList<SubViewItem> mSubViewItems = new ArrayList<>();
-    private ArrayList<Entry> mEntries = new ArrayList<>();
+    private ArrayList<ListItemPanel> mEntries = new ArrayList<>();
     private boolean mIsViewHolder = false;
     private String mPrefix = null;
     private IConfirmListener mConfirmListener;
@@ -30,15 +31,15 @@ public class ContentPanel extends JPanel {
     private JTextField mPrefixValue;
     private JCheckBox mTrimCheck;
     private JButton mConfirmBtn;
-    private EntryHeader mEntryHeader;
+    private ListHeaderPanel mListHeaderPanel;
 
     private OnCheckBoxStateChangedListener allCheckListener = new OnCheckBoxStateChangedListener() {
         @Override
         public void changeState(boolean checked) {
-            for (final Entry entry : mEntries) {
-                entry.setListener(null);
-                entry.getCheck().setSelected(checked);
-                entry.setListener(singleCheckListener);
+            for (final ListItemPanel listItemPanel : mEntries) {
+                listItemPanel.setListener(null);
+                listItemPanel.getCheck().setSelected(checked);
+                listItemPanel.setListener(singleCheckListener);
             }
         }
     };
@@ -47,13 +48,13 @@ public class ContentPanel extends JPanel {
         @Override
         public void changeState(boolean checked) {
             boolean result = true;
-            for (Entry entry : mEntries) {
-                result &= entry.getCheck().isSelected();
+            for (ListItemPanel listItemPanel : mEntries) {
+                result &= listItemPanel.getCheck().isSelected();
             }
 
-            mEntryHeader.setAllListener(null);
-            mEntryHeader.getAllCheck().setSelected(result);
-            mEntryHeader.setAllListener(allCheckListener);
+            mListHeaderPanel.setAllListener(null);
+            mListHeaderPanel.getAllCheck().setSelected(result);
+            mListHeaderPanel.setAllListener(allCheckListener);
         }
     };
 
@@ -126,8 +127,8 @@ public class ContentPanel extends JPanel {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.PAGE_AXIS));
         contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        mEntryHeader = new EntryHeader();
-        contentPanel.add(mEntryHeader);
+        mListHeaderPanel = new ListHeaderPanel();
+        contentPanel.add(mListHeaderPanel);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
         JPanel injectionsPanel = new JPanel();
@@ -137,21 +138,21 @@ public class ContentPanel extends JPanel {
         int cnt = 0;
         boolean selectAllCheck = true;
         for (SubViewItem subViewItem : mSubViewItems) {
-            Entry entry = new Entry(this, subViewItem);
-            entry.setListener(singleCheckListener);
+            ListItemPanel listItemPanel = new ListItemPanel(this, subViewItem);
+            listItemPanel.setListener(singleCheckListener);
 
             if (cnt > 0) {
                 injectionsPanel.add(Box.createRigidArea(new Dimension(0, 5)));
             }
-            injectionsPanel.add(entry);
+            injectionsPanel.add(listItemPanel);
             cnt++;
 
-            mEntries.add(entry);
+            mEntries.add(listItemPanel);
 
-            selectAllCheck &= entry.getCheck().isSelected();
+            selectAllCheck &= listItemPanel.getCheck().isSelected();
         }
-        mEntryHeader.getAllCheck().setSelected(selectAllCheck);
-        mEntryHeader.setAllListener(allCheckListener);
+        mListHeaderPanel.getAllCheck().setSelected(selectAllCheck);
+        mListHeaderPanel.setAllListener(allCheckListener);
         injectionsPanel.add(Box.createVerticalGlue());
         injectionsPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
@@ -232,8 +233,8 @@ public class ContentPanel extends JPanel {
                 mPrefix = null;
             }
             boolean isTrimType = mTrimCheck.isSelected();
-            for (final Entry entry : mEntries) {
-                entry.resetFieldName(mPrefix, isTrimType);
+            for (final ListItemPanel listItemPanel : mEntries) {
+                listItemPanel.resetFieldName(mPrefix, isTrimType);
             }
         }
     }
@@ -263,8 +264,8 @@ public class ContentPanel extends JPanel {
             mPrefix = null;
         }
         boolean isTrimType = mTrimCheck.isSelected();
-        for (final Entry entry : mEntries) {
-            entry.resetFieldName(mPrefix, isTrimType);
+        for (final ListItemPanel listItemPanel : mEntries) {
+            listItemPanel.resetFieldName(mPrefix, isTrimType);
         }
     }
 
@@ -273,8 +274,8 @@ public class ContentPanel extends JPanel {
         @Override
         public void stateChanged(ChangeEvent event) {
             boolean isTrimType = mTrimCheck.isSelected();
-            for (final Entry entry : mEntries) {
-                entry.resetFieldName(mPrefix, isTrimType);
+            for (final ListItemPanel listItemPanel : mEntries) {
+                listItemPanel.resetFieldName(mPrefix, isTrimType);
             }
         }
     }
@@ -284,7 +285,7 @@ public class ContentPanel extends JPanel {
         public void actionPerformed(ActionEvent event) {
             boolean valid = checkValidity();
 
-            mEntries.forEach(Entry::syncElement);
+            mEntries.forEach(ListItemPanel::syncElement);
 
             if (valid) {
                 if (mConfirmListener != null) {
@@ -299,6 +300,173 @@ public class ContentPanel extends JPanel {
         public void actionPerformed(ActionEvent event) {
             if (mCancelListener != null) {
                 mCancelListener.onCancel();
+            }
+        }
+    }
+
+    private class ListHeaderPanel extends JPanel {
+
+        JCheckBox mAllCheck;
+        JLabel mType;
+        JLabel mID;
+        JLabel mEvent;
+        JLabel mName;
+        OnCheckBoxStateChangedListener mAllListener;
+
+        void setAllListener(final OnCheckBoxStateChangedListener onStateChangedListener) {
+            this.mAllListener = onStateChangedListener;
+        }
+
+        ListHeaderPanel() {
+            mAllCheck = new JCheckBox();
+            mAllCheck.setPreferredSize(new Dimension(40, 26));
+            mAllCheck.setSelected(false);
+            mAllCheck.addItemListener(new AllCheckListener());
+
+            mType = new JLabel("SubViewItem");
+            mType.setPreferredSize(new Dimension(100, 26));
+            mType.setFont(new Font(mType.getFont().getFontName(), Font.BOLD, mType.getFont().getSize()));
+
+            mID = new JLabel("ID");
+            mID.setPreferredSize(new Dimension(100, 26));
+            mID.setFont(new Font(mID.getFont().getFontName(), Font.BOLD, mID.getFont().getSize()));
+
+            mEvent = new JLabel("OnClick");
+            mEvent.setPreferredSize(new Dimension(100, 26));
+            mEvent.setFont(new Font(mEvent.getFont().getFontName(), Font.BOLD, mEvent.getFont().getSize()));
+
+            mName = new JLabel("Field Name");
+            mName.setPreferredSize(new Dimension(100, 26));
+            mName.setFont(new Font(mName.getFont().getFontName(), Font.BOLD, mName.getFont().getSize()));
+
+            setLayout(new BoxLayout(this, BoxLayout.LINE_AXIS));
+            add(Box.createRigidArea(new Dimension(1, 0)));
+            add(mAllCheck);
+            add(Box.createRigidArea(new Dimension(11, 0)));
+            add(mType);
+            add(Box.createRigidArea(new Dimension(12, 0)));
+            add(mID);
+            add(Box.createRigidArea(new Dimension(12, 0)));
+            add(mEvent);
+            add(Box.createRigidArea(new Dimension(12, 0)));
+            add(mName);
+            add(Box.createHorizontalGlue());
+        }
+
+        JCheckBox getAllCheck() {
+            return mAllCheck;
+        }
+
+        private class AllCheckListener implements ItemListener {
+            @Override
+            public void itemStateChanged(ItemEvent itemEvent) {
+                if (mAllListener != null) {
+                    mAllListener.changeState(itemEvent.getStateChange() == ItemEvent.SELECTED);
+                }
+            }
+        }
+    }
+
+    private class ListItemPanel extends JPanel {
+
+        ContentPanel mParent;
+        SubViewItem mSubViewItem;
+        OnCheckBoxStateChangedListener mListener;
+        JCheckBox mCheck;
+        JLabel mType;
+        JLabel mID;
+        JCheckBox mEvent;
+        JTextField mName;
+        Color mNameDefaultColor;
+        Color mNameErrorColor = new JBColor(new Color(0x880000), new Color(0x880000));
+
+        JCheckBox getCheck() {
+            return mCheck;
+        }
+
+        void setListener(final OnCheckBoxStateChangedListener onStateChangedListener) {
+            this.mListener = onStateChangedListener;
+        }
+
+        ListItemPanel(ContentPanel parent, SubViewItem subViewItem) {
+            mSubViewItem = subViewItem;
+            mParent = parent;
+
+            mCheck = new JCheckBox();
+            mCheck.setPreferredSize(new Dimension(40, 26));
+            mCheck.setSelected(true);
+            mCheck.addChangeListener(e -> checkState());
+
+            mEvent = new JCheckBox();
+            mEvent.setPreferredSize(new Dimension(100, 26));
+
+            mType = new JLabel(mSubViewItem.getClassName());
+            mType.setPreferredSize(new Dimension(100, 26));
+
+            mID = new JLabel(mSubViewItem.getId());
+            mID.setPreferredSize(new Dimension(100, 26));
+
+            mName = new JTextField(mSubViewItem.getFieldName(), 10);
+            mNameDefaultColor = mName.getBackground();
+            mName.setPreferredSize(new Dimension(100, 26));
+            mName.addFocusListener(new FocusListener() {
+                @Override
+                public void focusGained(FocusEvent e) {
+                    // empty
+                }
+
+                @Override
+                public void focusLost(FocusEvent e) {
+                    syncElement();
+                }
+            });
+
+            setLayout(new BoxLayout(this, BoxLayout.LINE_AXIS));
+            setMaximumSize(new Dimension(Short.MAX_VALUE, 54));
+            add(mCheck);
+            add(Box.createRigidArea(new Dimension(10, 0)));
+            add(mType);
+            add(Box.createRigidArea(new Dimension(10, 0)));
+            add(mID);
+            add(Box.createRigidArea(new Dimension(10, 0)));
+            add(mEvent);
+            add(Box.createRigidArea(new Dimension(10, 0)));
+            add(mName);
+            add(Box.createHorizontalGlue());
+
+            checkState();
+        }
+
+        void resetFieldName(String prefix, boolean isTrimType) {
+            mName.setText(mSubViewItem.getFieldName(prefix, isTrimType));
+        }
+
+        SubViewItem syncElement() {
+            mSubViewItem.setSelected(mCheck.isSelected());
+            mSubViewItem.setClickEvent(mEvent.isSelected());
+
+            if (mSubViewItem.checkValidity()) {
+                mName.setBackground(mNameDefaultColor);
+            } else {
+                mName.setBackground(mNameErrorColor);
+            }
+
+            return mSubViewItem;
+        }
+
+        private void checkState() {
+            if (mCheck.isSelected()) {
+                mType.setEnabled(true);
+                mID.setEnabled(true);
+                mName.setEnabled(true);
+            } else {
+                mType.setEnabled(false);
+                mID.setEnabled(false);
+                mName.setEnabled(false);
+            }
+
+            if (mListener != null) {
+                mListener.changeState(mCheck.isSelected());
             }
         }
     }
