@@ -21,10 +21,12 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.util.ArrayList;
 
+/**
+ * Create By ClilyStudio
+ * 2016/08/01
+ */
 public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ContentPanel.IConfirmListener, ContentPanel.ICancelListener {
-
     private JFrame mDialog;
-
     private PsiElement mElement;
 
     @SuppressWarnings("unused")
@@ -65,11 +67,13 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
             Utils.showErrorNotification(project, "No file found");
             return;
         }
+
         PsiFile layout = Utils.getLayoutFileFromCaret(editor, file);
         if (layout == null) {
             Utils.showErrorNotification(project, "No layout found");
             return;
         }
+
         int offset = editor.getCaretModel().getOffset();
         mElement = file.findElementAt(offset);
         if (mElement == null) {
@@ -96,7 +100,6 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
             return;
         }
 
-        // get parent classes and check if it's an adapter
         boolean createHolder = false;
         PsiReferenceList list = clazz.getExtendsList();
         if (list != null) {
@@ -135,11 +138,12 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
 
         closeDialog();
 
-        if (Utils.getInjectCount(subViewItems) > 0 || Utils.getClickCount(subViewItems) > 0) {
-            // generate injections
-            new CodeGenerator(file, getTargetClass(editor, file), "Generate Injections", subViewItems, layout.getName(), fieldNamePrefix, createHolder).execute();
-        } else { // just notify user about no element selected
-            Utils.showInfoNotification(project, "No injection was selected");
+        if (Utils.getInjectCount(subViewItems) > 0) {
+            // Generate Code
+            new CodeGenerator(file, getTargetClass(editor, file), subViewItems, layout.getName(), fieldNamePrefix, createHolder).execute();
+        } else {
+            // just notify user about no item selected
+            Utils.showInfoNotification(project, "No item was selected");
         }
     }
 
@@ -161,8 +165,8 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
         String mFieldNamePrefix;
         boolean mCreateHolder;
 
-        CodeGenerator(PsiFile file, PsiClass clazz, String command, ArrayList<SubViewItem> subViewItems, String layoutFileName, String fieldNamePrefix, boolean createHolder) {
-            super(clazz.getProject(), command);
+        CodeGenerator(PsiFile file, PsiClass clazz, ArrayList<SubViewItem> subViewItems, String layoutFileName, String fieldNamePrefix, boolean createHolder) {
+            super(clazz.getProject());
 
             mFile = file;
             mProject = clazz.getProject();
@@ -198,11 +202,11 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
 
         void generateClick() {
             generateImplements();
-            StringBuilder method = new StringBuilder();
-            method.append("@Override public void onClick(android.view.View v) {switch (v.getId()){");
-            mSubViewItems.stream().filter(SubViewItem::hasClickEvent).forEach(subViewItem -> method.append("case ").append(subViewItem.getFullID()).append(": break;"));
-            method.append("}}");
-            mClass.add(mFactory.createMethodFromText(method.toString(), mClass));
+            StringBuilder clickMethod = new StringBuilder();
+            clickMethod.append("@Override public void onClick(android.view.View v) {switch (v.getId()){");
+            mSubViewItems.stream().filter(SubViewItem::hasClickEvent).forEach(subViewItem -> clickMethod.append("case ").append(subViewItem.getFullID()).append(": break;"));
+            clickMethod.append("}}");
+            mClass.add(mFactory.createMethodFromText(clickMethod.toString(), mClass));
 
 
             // add onClick's comment
@@ -240,23 +244,32 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
             PsiClass viewHolder = mFactory.createClassFromText(Utils.VIEWHOLDER_CLASS_NAME + "(android.view.View rootView) {}", mClass);
             viewHolder.setName(Utils.VIEWHOLDER_CLASS_NAME);
 
-            PsiMethod constructMethod = viewHolder.findMethodsByName("Utils.getViewHolderClassName()", false)[0];
+            PsiMethod constructMethod = viewHolder.findMethodsByName(Utils.VIEWHOLDER_CLASS_NAME, false)[0];
 
-            // custom package+class
             mSubViewItems.stream().filter(SubViewItem::isSelected).forEach(subViewItem -> {
-                StringBuilder injection = new StringBuilder();
+                StringBuilder fields = new StringBuilder();
                 if (subViewItem.getClassFull() != null && subViewItem.getClassFull().length() > 0) {
-                    // custom package+class
-                    injection.append(subViewItem.getClassFull());
+                    fields.append(subViewItem.getClassFull());
                 } else {
-                    injection.append(Utils.getRealClassName(subViewItem.getClassName()));
+                    fields.append(Utils.getRealClassName(subViewItem.getClassName()));
                 }
-                injection.append(" ");
-                injection.append(subViewItem.getFieldName());
-                injection.append(";");
+                fields.append(" ");
+                fields.append(subViewItem.getFieldName());
+                fields.append(";");
+                viewHolder.add(mFactory.createFieldFromText(fields.toString(), mClass));
 
-                viewHolder.add(mFactory.createFieldFromText(injection.toString(), mClass));
-                constructMethod.add(mFactory.createStatementFromText(injection.toString(), viewHolder));
+                StringBuilder initMethod = new StringBuilder();
+                initMethod.append(subViewItem.getFieldName()).append(" = ")
+                        .append("(")
+                        .append(subViewItem.getClassName())
+                        .append(")")
+                        .append("rootView.findViewById(")
+                        .append(subViewItem.getFullID())
+                        .append(");");
+                PsiCodeBlock body = constructMethod.getBody();
+                if (body != null) {
+                    body.add(mFactory.createStatementFromText(initMethod.toString(), viewHolder));
+                }
             });
 
             mClass.add(viewHolder);
