@@ -24,18 +24,15 @@ import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlTag;
 import com.intellij.ui.awt.RelativePoint;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 
 public class Utils {
-
+    public static final String VIEWHOLDER_CLASS_NAME = "ViewHolder";
     private static final Logger log = Logger.getInstance(Utils.class);
-
-    public static final String ADD_PREFIX = "androidcodeassistant_add_prefix";
-    public static final String PREFIX = "androidcodeassistant_prefix";
-    public static final String VIEWHOLDER_CLASS_NAME = "androidcodeassistant_viewholder_class_name";
-    public static final String TRIM_TYPE = "androidcodeassistant_trim_type";
+    private static final String ADD_PREFIX = "androidcodeassistant_add_prefix";
+    private static final String PREFIX = "androidcodeassistant_prefix";
+    private static final String TRIM_TYPE = "androidcodeassistant_trim_type";
 
     /**
      * Is using Android SDK?
@@ -53,10 +50,6 @@ public class Utils {
 
     /**
      * Try to find layout XML file in current source on cursor's position
-     *
-     * @param editor
-     * @param file
-     * @return
      */
     public static PsiFile getLayoutFileFromCaret(Editor editor, PsiFile file) {
         int offset = editor.getCaretModel().getOffset();
@@ -81,15 +74,9 @@ public class Utils {
 
     /**
      * Try to find layout XML file in selected element
-     *
-     * @param element
-     * @return
      */
-    public static PsiFile findLayoutResource(PsiElement element) {
+    private static PsiFile findLayoutResource(PsiElement element) {
         log.info("Finding layout resource for element: " + element.getText());
-        if (element == null) {
-            return null; // nothing to be selected
-        }
         if (!(element instanceof PsiIdentifier)) {
             return null; // nothing to be selected
         }
@@ -130,7 +117,7 @@ public class Utils {
             }
         }
 
-        // TODO - we have a problem here - we still can have multiple layouts (some coming from a dependency)
+        // We have a problem here - we still can have multiple layouts (some coming from a dependency)
         // we need to resolve R class properly and find the proper layout for the R class
         for (PsiFile file : files) {
             log.info("Resolved layout resource file for className [" + name + "]: " + file.getVirtualFile());
@@ -140,13 +127,8 @@ public class Utils {
 
     /**
      * Try to find layout XML file by className
-     *
-     * @param file
-     * @param project
-     * @param fileName
-     * @return
      */
-    public static PsiFile findLayoutResource(PsiFile file, Project project, String fileName) {
+    private static PsiFile findLayoutResource(PsiFile file, Project project, String fileName) {
         String name = String.format("%s.xml", fileName);
         // restricting the search to the module of layout that includes the layout we are seaching for
         return resolveLayoutResourceFile(file, project, name);
@@ -154,23 +136,16 @@ public class Utils {
 
     /**
      * Obtain all IDs from layout
-     *
-     * @param file
-     * @return
      */
     public static ArrayList<SubViewItem> getIDsFromLayout(final PsiFile file) {
-        final ArrayList<SubViewItem> subViewItems = new ArrayList<SubViewItem>();
-
+        final ArrayList<SubViewItem> subViewItems = new ArrayList<>();
         return getIDsFromLayout(file, subViewItems);
     }
 
     /**
      * Obtain all IDs from layout
-     *
-     * @param file
-     * @return
      */
-    public static ArrayList<SubViewItem> getIDsFromLayout(final PsiFile file, final ArrayList<SubViewItem> subViewItems) {
+    private static ArrayList<SubViewItem> getIDsFromLayout(final PsiFile file, final ArrayList<SubViewItem> subViewItems) {
         file.accept(new XmlRecursiveElementVisitor() {
 
             @Override
@@ -221,11 +196,8 @@ public class Utils {
 
     /**
      * Get layout className from XML identifier (@layout/....)
-     *
-     * @param layout
-     * @return
      */
-    public static String getLayoutName(String layout) {
+    private static String getLayoutName(String layout) {
         if (layout == null || !layout.startsWith("@") || !layout.contains("/")) {
             return null; // it's not layout identifier
         }
@@ -240,9 +212,6 @@ public class Utils {
 
     /**
      * Display simple notification - information
-     *
-     * @param project
-     * @param text
      */
     public static void showInfoNotification(Project project, String text) {
         showNotification(project, MessageType.INFO, text);
@@ -250,9 +219,6 @@ public class Utils {
 
     /**
      * Display simple notification - error
-     *
-     * @param project
-     * @param text
      */
     public static void showErrorNotification(Project project, String text) {
         showNotification(project, MessageType.ERROR, text);
@@ -260,12 +226,8 @@ public class Utils {
 
     /**
      * Display simple notification of given type
-     *
-     * @param project
-     * @param type
-     * @param text
      */
-    public static void showNotification(Project project, MessageType type, String text) {
+    private static void showNotification(Project project, MessageType type, String text) {
         StatusBar statusBar = WindowManager.getInstance().getStatusBar(project);
 
         JBPopupFactory.getInstance()
@@ -277,8 +239,6 @@ public class Utils {
 
     /**
      * Load field className prefix from code style
-     *
-     * @return
      */
     public static String getPrefix() {
         if (PropertiesComponent.getInstance().isValueSet(PREFIX)) {
@@ -304,14 +264,6 @@ public class Utils {
 
     public static void setAddPrefix(boolean isAddPrefix) {
         PropertiesComponent.getInstance().setValue(ADD_PREFIX, isAddPrefix);
-    }
-
-    public static String getViewHolderClassName() {
-        return PropertiesComponent.getInstance().getValue(VIEWHOLDER_CLASS_NAME, "ViewHolder");
-    }
-
-    public static void setViewHolderClassName(String viewHolderClassName) {
-        PropertiesComponent.getInstance().setValue(VIEWHOLDER_CLASS_NAME, viewHolderClassName);
     }
 
     public static boolean isTrimType() {
@@ -344,45 +296,29 @@ public class Utils {
 
     /**
      * Easier way to check if string is empty
-     *
-     * @param text
-     * @return
      */
     public static boolean isEmptyString(String text) {
         return (text == null || text.trim().length() == 0);
     }
 
-    /**
-     * Check whether classpath of a module that corresponds to a {@link PsiElement} contains given class.
-     *
-     * @param project    Project
-     * @param psiElement SubViewItem for which we check the class
-     * @param className  Class className of the searched class
-     * @return True if the class is present on the classpath
-     * @since 1.3
-     */
-    public static boolean isClassAvailableForPsiFile(@NotNull Project project, @NotNull PsiElement psiElement, @NotNull String className) {
-        Module module = ModuleUtil.findModuleForPsiElement(psiElement);
-        if (module == null) {
-            return false;
+    public static String getRealClassName(String className) {
+        if ("WebView".equals(className)) {
+            return "android.webkit.WebView";
+        } else if ("View".equals(className)) {
+            return "android.view.View";
+        } else {
+            return "android.widget." + className;
         }
-        GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(false);
-        PsiClass classInModule = JavaPsiFacade.getInstance(project).findClass(className, moduleScope);
-        return classInModule != null;
     }
 
-    /**
-     * Check whether classpath of a the whole project contains given class.
-     * This is only fallback for wrongly setup projects.
-     *
-     * @param project   Project
-     * @param className Class className of the searched class
-     * @return True if the class is present on the classpath
-     * @since 1.3.1
-     */
-    public static boolean isClassAvailableForProject(@NotNull Project project, @NotNull String className) {
-        PsiClass classInModule = JavaPsiFacade.getInstance(project).findClass(className,
-                new EverythingGlobalScope(project));
-        return classInModule != null;
+    public static boolean isViewHolder(String qualifierName) {
+        return "android.widget.ListAdapter".equals(qualifierName) ||
+                "android.widget.ArrayAdapter".equals(qualifierName) ||
+                "android.widget.BaseAdapter".equals(qualifierName) ||
+                "android.widget.HeaderViewListAdapter".equals(qualifierName) ||
+                "android.widget.SimpleAdapter".equals(qualifierName) ||
+                "android.support.v4.widget.CursorAdapter".equals(qualifierName) ||
+                "android.support.v4.widget.SimpleCursorAdapter".equals(qualifierName) ||
+                "android.support.v4.widget.ResourceCursorAdapter".equals(qualifierName);
     }
 }

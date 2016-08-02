@@ -4,7 +4,6 @@ import com.clilystudio.plugins.aca.form.EntryList;
 import com.clilystudio.plugins.aca.form.ICancelListener;
 import com.clilystudio.plugins.aca.form.IConfirmListener;
 import com.clilystudio.plugins.aca.model.SubViewItem;
-import com.clilystudio.plugins.aca.utils.Definitions;
 import com.clilystudio.plugins.aca.utils.Utils;
 import com.intellij.codeInsight.CodeInsightActionHandler;
 import com.intellij.codeInsight.actions.ReformatCodeProcessor;
@@ -93,8 +92,9 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
         PsiReferenceList list = clazz.getExtendsList();
         if (list != null) {
             for (PsiJavaCodeReferenceElement element : list.getReferenceElements()) {
-                if (Definitions.adapters.contains(element.getQualifiedName())) {
+                if (Utils.isViewHolder(element.getQualifiedName())) {
                     createHolder = true;
+                    break;
                 }
             }
         }
@@ -229,12 +229,12 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
         void generateAdapter() {
             // view holder class
             StringBuilder holderBuilder = new StringBuilder();
-            holderBuilder.append(Utils.getViewHolderClassName());
+            holderBuilder.append(Utils.VIEWHOLDER_CLASS_NAME);
             holderBuilder.append("(android.view.View rootView) {");
             holderBuilder.append("}");
 
             PsiClass viewHolder = mFactory.createClassFromText(holderBuilder.toString(), mClass);
-            viewHolder.setName(Utils.getViewHolderClassName());
+            viewHolder.setName(Utils.VIEWHOLDER_CLASS_NAME);
 
             PsiMethod constuctMethod = viewHolder.findMethodsByName("Utils.getViewHolderClassName()", false)[0];
 
@@ -258,13 +258,8 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
                     if (subViewItem.getClassFull() != null && subViewItem.getClassFull().length() > 0) {
                         // custom package+class
                         injection.append(subViewItem.getClassFull());
-                    } else if (Definitions.paths.containsKey(subViewItem.getClassName())) {
-                        // listed class
-                        injection.append(Definitions.paths.get(subViewItem.getClassName()));
                     } else {
-                        // android.widget
-                        injection.append("android.widget.");
-                        injection.append(subViewItem.getClassName());
+                        injection.append(Utils.getRealClassName(subViewItem.getClassName()));
                     }
                     injection.append(" ");
                     injection.append(subViewItem.getFieldName());
@@ -289,7 +284,7 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
             comment.append("*/");
 
 //        mClass.addBefore(mFactory.createCommentFromText(comment.toString(), mClass), mClass.findInnerClassByName(Utils.getViewHolderClassName(), true));
-            mClass.addBefore(mFactory.createKeyword("static", mClass), mClass.findInnerClassByName(Utils.getViewHolderClassName(), true));
+            mClass.addBefore(mFactory.createKeyword("static", mClass), mClass.findInnerClassByName(Utils.VIEWHOLDER_CLASS_NAME, true));
         }
 
         /**
@@ -303,13 +298,8 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
                     if (subViewItem.getClassFull() != null && subViewItem.getClassFull().length() > 0) {
                         // custom package+class
                         injection.append(subViewItem.getClassFull());
-                    } else if (Definitions.paths.containsKey(subViewItem.getClassName())) {
-                        // listed class
-                        injection.append(Definitions.paths.get(subViewItem.getClassName()));
                     } else {
-                        // android.widget
-                        injection.append("android.widget.");
-                        injection.append(subViewItem.getClassName());
+                        injection.append(Utils.getRealClassName(subViewItem.getClassName()));
                     }
                     injection.append(" ");
                     injection.append(subViewItem.getFieldName());
