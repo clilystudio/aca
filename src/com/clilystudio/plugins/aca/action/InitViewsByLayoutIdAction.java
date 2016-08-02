@@ -1,6 +1,6 @@
 package com.clilystudio.plugins.aca.action;
 
-import com.clilystudio.plugins.aca.form.EntryList;
+import com.clilystudio.plugins.aca.form.ContentPanel;
 import com.clilystudio.plugins.aca.form.ICancelListener;
 import com.clilystudio.plugins.aca.form.IConfirmListener;
 import com.clilystudio.plugins.aca.model.SubViewItem;
@@ -99,7 +99,7 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ICo
             }
         }
 
-        EntryList panel = new EntryList(project, editor, subViewItems, createHolder, this, this);
+        ContentPanel panel = new ContentPanel(project, editor, subViewItems, createHolder, this, this);
 
         mDialog = new JFrame();
         mDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);

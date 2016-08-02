@@ -15,7 +15,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 
-public class EntryList extends JPanel {
+public class ContentPanel extends JPanel {
 
     private Project mProject;
     private Editor mEditor;
@@ -57,7 +57,7 @@ public class EntryList extends JPanel {
         }
     };
 
-    public EntryList(Project project, Editor editor, ArrayList<SubViewItem> subViewItems, boolean createHolder, IConfirmListener confirmListener, ICancelListener cancelListener) {
+    public ContentPanel(Project project, Editor editor, ArrayList<SubViewItem> subViewItems, boolean createHolder, IConfirmListener confirmListener, ICancelListener cancelListener) {
         mProject = project;
         mEditor = editor;
         mIsViewHolder = createHolder;

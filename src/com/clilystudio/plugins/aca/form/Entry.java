@@ -11,7 +11,7 @@ import java.awt.event.FocusListener;
 
 public class Entry extends JPanel {
 
-    protected EntryList mParent;
+    protected ContentPanel mParent;
     protected SubViewItem mSubViewItem;
     protected OnCheckBoxStateChangedListener mListener;
     // ui
@@ -31,7 +31,7 @@ public class Entry extends JPanel {
         this.mListener = onStateChangedListener;
     }
 
-    public Entry(EntryList parent, SubViewItem subViewItem) {
+    public Entry(ContentPanel parent, SubViewItem subViewItem) {
         mSubViewItem = subViewItem;
         mParent = parent;
 
