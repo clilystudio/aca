@@ -14,18 +14,18 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.JavaCodeStyleManager;
 import com.intellij.psi.search.EverythingGlobalScope;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiUtilBase;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.util.ArrayList;
 
-/**
- * Created by ShengGL on 2016/7/29.
- */
 public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ContentPanel.IConfirmListener, ContentPanel.ICancelListener {
 
     private JFrame mDialog;
+
+    private PsiElement mElement;
 
     @SuppressWarnings("unused")
     public InitViewsByLayoutIdAction() {
@@ -43,26 +43,37 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
     }
 
     @Override
-    public boolean isValidForFile(Project project, Editor editor, PsiFile file) {
+    public boolean isValidForFile(@NotNull Project project, @NotNull Editor editor, @NotNull PsiFile file) {
         return (super.isValidForFile(project, editor, file) && Utils.getLayoutFileFromCaret(editor, file) != null);
     }
 
     @Override
     public void actionPerformed(AnActionEvent e) {
         Project project = e.getData(PlatformDataKeys.PROJECT);
-        Editor editor = e.getData(PlatformDataKeys.EDITOR);
+        if (project == null) {
+            return;
+        }
 
+        Editor editor = e.getData(PlatformDataKeys.EDITOR);
         actionPerformedImpl(project, editor);
     }
 
     @Override
     public void actionPerformedImpl(@NotNull Project project, Editor editor) {
         PsiFile file = PsiUtilBase.getPsiFileInEditor(editor, project);
+        if (file == null) {
+            Utils.showErrorNotification(project, "No file found");
+            return;
+        }
         PsiFile layout = Utils.getLayoutFileFromCaret(editor, file);
-
         if (layout == null) {
-            // no layout found
             Utils.showErrorNotification(project, "No layout found");
+            return;
+        }
+        int offset = editor.getCaretModel().getOffset();
+        mElement = file.findElementAt(offset);
+        if (mElement == null) {
+            Utils.showErrorNotification(project, "No element found");
             return;
         }
 
@@ -103,6 +114,7 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
         mDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         mDialog.getRootPane().setDefaultButton(panel.getConfirmButton());
         mDialog.getContentPane().add(panel);
+        mDialog.setTitle("Android Code Assistant");
         mDialog.pack();
         mDialog.setLocationRelativeTo(null);
         mDialog.setVisible(true);
@@ -125,7 +137,7 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
 
         if (Utils.getInjectCount(subViewItems) > 0 || Utils.getClickCount(subViewItems) > 0) {
             // generate injections
-            new InjectWriter(file, getTargetClass(editor, file), "Generate Injections", subViewItems, layout.getName(), fieldNamePrefix, createHolder).execute();
+            new CodeGenerator(file, getTargetClass(editor, file), "Generate Injections", subViewItems, layout.getName(), fieldNamePrefix, createHolder).execute();
         } else { // just notify user about no element selected
             Utils.showInfoNotification(project, "No injection was selected");
         }
@@ -139,18 +151,17 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
         mDialog.dispose();
     }
 
-    private class InjectWriter extends WriteCommandAction.Simple {
+    private class CodeGenerator extends WriteCommandAction.Simple {
+        PsiFile mFile;
+        Project mProject;
+        PsiClass mClass;
+        ArrayList<SubViewItem> mSubViewItems;
+        PsiElementFactory mFactory;
+        String mLayoutFileName;
+        String mFieldNamePrefix;
+        boolean mCreateHolder;
 
-        protected PsiFile mFile;
-        protected Project mProject;
-        protected PsiClass mClass;
-        protected ArrayList<SubViewItem> mSubViewItems;
-        protected PsiElementFactory mFactory;
-        protected String mLayoutFileName;
-        protected String mFieldNamePrefix;
-        protected boolean mCreateHolder;
-
-        InjectWriter(PsiFile file, PsiClass clazz, String command, ArrayList<SubViewItem> subViewItems, String layoutFileName, String fieldNamePrefix, boolean createHolder) {
+        CodeGenerator(PsiFile file, PsiClass clazz, String command, ArrayList<SubViewItem> subViewItems, String layoutFileName, String fieldNamePrefix, boolean createHolder) {
             super(clazz.getProject(), command);
 
             mFile = file;
@@ -168,10 +179,10 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
             if (mCreateHolder) {
                 generateAdapter();
             } else {
+                generateInitViews();
                 if (Utils.getInjectCount(mSubViewItems) > 0) {
                     generateFields();
                 }
-                generateInjects();
                 if (Utils.getClickCount(mSubViewItems) > 0) {
                     generateClick();
                 }
@@ -186,129 +197,95 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
         }
 
         void generateClick() {
+            generateImplements();
             StringBuilder method = new StringBuilder();
-            if (Utils.getClickCount(mSubViewItems) == 1) {
-                method.append("@butterknife.OnClick(");
-                for (SubViewItem subViewItem : mSubViewItems) {
-                    if (subViewItem.hasClickEvent()) {
-                        method.append(subViewItem.getFullID() + ")");
-                    }
-                }
-                method.append("public void onClick() {}");
-            } else {
-                method.append("@butterknife.OnClick({");
-                int currentCount = 0;
-                for (SubViewItem subViewItem : mSubViewItems) {
-                    if (subViewItem.hasClickEvent()) {
-                        currentCount++;
-                        if (currentCount == Utils.getClickCount(mSubViewItems)) {
-                            method.append(subViewItem.getFullID() + "})");
-                        } else {
-                            method.append(subViewItem.getFullID() + ",");
-                        }
-                    }
-                }
-                method.append("public void onClick(android.view.View view) {switch (view.getId()){");
-                for (SubViewItem subViewItem : mSubViewItems) {
-                    if (subViewItem.hasClickEvent()) {
-                        method.append("case " + subViewItem.getFullID() + ": break;");
-                    }
-                }
-                method.append("}}");
-            }
-
+            method.append("@Override public void onClick(android.view.View v) {switch (v.getId()){");
+            mSubViewItems.stream().filter(SubViewItem::hasClickEvent).forEach(subViewItem -> method.append("case ").append(subViewItem.getFullID()).append(": break;"));
+            method.append("}}");
             mClass.add(mFactory.createMethodFromText(method.toString(), mClass));
 
+
+            // add onClick's comment
+            String comment = "/**\n" +
+                    " * @author\tAndroid Code Assistant, plugin for Android Studio by Clily Studio (https://github.com/clilystudio)\n" +
+                    "*/";
+
+            mClass.addBefore(mFactory.createCommentFromText(comment, mClass), mClass.findMethodsByName("onClick", false)[0]);
+        }
+
+        void generateImplements() {
+            final PsiClassType[] implementsListTypes = mClass.getImplementsListTypes();
+            final String implementsType = "android.view.View.OnClickListener";
+
+            for (PsiClassType implementsListType : implementsListTypes) {
+                PsiClass resolved = implementsListType.resolve();
+                // Already implements View.OnClickListener, no need to add it
+                if (resolved != null && implementsType.equals(resolved.getQualifiedName())) {
+                    return;
+                }
+            }
+
+            PsiJavaCodeReferenceElement implementsReference = mFactory.createReferenceFromText(implementsType, mClass);
+            PsiReferenceList implementsList = mClass.getImplementsList();
+
+            if (implementsList != null) {
+                implementsList.add(implementsReference);
+            }
         }
 
         /**
          * Create ViewHolder for adapters with injections
          */
         void generateAdapter() {
-            // view holder class
-            StringBuilder holderBuilder = new StringBuilder();
-            holderBuilder.append(Utils.VIEWHOLDER_CLASS_NAME);
-            holderBuilder.append("(android.view.View rootView) {");
-            holderBuilder.append("}");
-
-            PsiClass viewHolder = mFactory.createClassFromText(holderBuilder.toString(), mClass);
+            PsiClass viewHolder = mFactory.createClassFromText(Utils.VIEWHOLDER_CLASS_NAME + "(android.view.View rootView) {}", mClass);
             viewHolder.setName(Utils.VIEWHOLDER_CLASS_NAME);
 
-            PsiMethod constuctMethod = viewHolder.findMethodsByName("Utils.getViewHolderClassName()", false)[0];
+            PsiMethod constructMethod = viewHolder.findMethodsByName("Utils.getViewHolderClassName()", false)[0];
 
-            // add injections into view holder
-            for (SubViewItem subViewItem : mSubViewItems) {
-                if (subViewItem.isSelected()) {
-                    String rPrefix;
-                    if (subViewItem.isAndroidNS()) {
-                        rPrefix = "android.R.id.";
-                    } else {
-                        rPrefix = "R.id.";
-                    }
-
-                    StringBuilder injection = new StringBuilder();
-//                    injection.append('@');
-//                    injection.append(butterKnife.getFieldAnnotationCanonicalName());
-//                    injection.append('(');
-//                    injection.append(rPrefix);
-//                    injection.append(subViewItem.id);
-//                    injection.append(") ");
-                    if (subViewItem.getClassFull() != null && subViewItem.getClassFull().length() > 0) {
-                        // custom package+class
-                        injection.append(subViewItem.getClassFull());
-                    } else {
-                        injection.append(Utils.getRealClassName(subViewItem.getClassName()));
-                    }
-                    injection.append(" ");
-                    injection.append(subViewItem.getFieldName());
-                    injection.append(";");
-
-                    viewHolder.add(mFactory.createFieldFromText(injection.toString(), mClass));
-                    constuctMethod.add(mFactory.createStatementFromText(injection.toString(), viewHolder));
+            // custom package+class
+            mSubViewItems.stream().filter(SubViewItem::isSelected).forEach(subViewItem -> {
+                StringBuilder injection = new StringBuilder();
+                if (subViewItem.getClassFull() != null && subViewItem.getClassFull().length() > 0) {
+                    // custom package+class
+                    injection.append(subViewItem.getClassFull());
+                } else {
+                    injection.append(Utils.getRealClassName(subViewItem.getClassName()));
                 }
-            }
+                injection.append(" ");
+                injection.append(subViewItem.getFieldName());
+                injection.append(";");
+
+                viewHolder.add(mFactory.createFieldFromText(injection.toString(), mClass));
+                constructMethod.add(mFactory.createStatementFromText(injection.toString(), viewHolder));
+            });
 
             mClass.add(viewHolder);
-
-            // add view holder's comment
-            StringBuilder comment = new StringBuilder();
-            comment.append("/**\n");
-            comment.append(" * This class contains all butterknife-injected Views & Layouts from layout file '");
-            comment.append(mLayoutFileName);
-            comment.append("'\n");
-            comment.append("* for easy to all layout elements.\n");
-            comment.append(" *\n");
-            comment.append(" * @author\tButterKnifeZelezny, plugin for Android Studio by Avast Developers (http://github.com/avast)\n");
-            comment.append("*/");
-
-//        mClass.addBefore(mFactory.createCommentFromText(comment.toString(), mClass), mClass.findInnerClassByName(Utils.getViewHolderClassName(), true));
             mClass.addBefore(mFactory.createKeyword("static", mClass), mClass.findInnerClassByName(Utils.VIEWHOLDER_CLASS_NAME, true));
         }
 
         /**
          * Create fields for injections inside main class
          */
-        protected void generateFields() {
-            // add injections into main class
-            for (SubViewItem subViewItem : mSubViewItems) {
-                if (subViewItem.isSelected()) {
-                    StringBuilder injection = new StringBuilder();
-                    if (subViewItem.getClassFull() != null && subViewItem.getClassFull().length() > 0) {
-                        // custom package+class
-                        injection.append(subViewItem.getClassFull());
-                    } else {
-                        injection.append(Utils.getRealClassName(subViewItem.getClassName()));
-                    }
-                    injection.append(" ");
-                    injection.append(subViewItem.getFieldName());
-                    injection.append(";");
-
-                    mClass.add(mFactory.createFieldFromText(injection.toString(), mClass));
+        void generateFields() {
+            // custom package+class
+            mSubViewItems.stream().filter(SubViewItem::isSelected).forEach(subViewItem -> {
+                StringBuilder injection = new StringBuilder();
+                injection.append("private ");
+                if (subViewItem.getClassFull() != null && subViewItem.getClassFull().length() > 0) {
+                    // custom package+class
+                    injection.append(subViewItem.getClassFull());
+                } else {
+                    injection.append(Utils.getRealClassName(subViewItem.getClassName()));
                 }
-            }
+                injection.append(" ");
+                injection.append(subViewItem.getFieldName());
+                injection.append(";");
+
+                mClass.add(mFactory.createFieldFromText(injection.toString(), mClass));
+            });
         }
 
-        protected void generateInjects() {
+        void generateInitViews() {
             PsiClass activityClass = JavaPsiFacade.getInstance(mProject).findClass(
                     "android.app.Activity", new EverythingGlobalScope(mProject));
             PsiClass fragmentClass = JavaPsiFacade.getInstance(mProject).findClass(
@@ -316,113 +293,84 @@ public class InitViewsByLayoutIdAction extends BaseGenerateAction implements Con
             PsiClass supportFragmentClass = JavaPsiFacade.getInstance(mProject).findClass(
                     "android.support.v4.app.Fragment", new EverythingGlobalScope(mProject));
 
-            // Check for Activity class
             if (activityClass != null && mClass.isInheritor(activityClass, true)) {
-                generateActivityBind();
-                // Check for Fragment class
+                generateActivityInit();
             } else if ((fragmentClass != null && mClass.isInheritor(fragmentClass, true)) || (supportFragmentClass != null && mClass.isInheritor(supportFragmentClass, true))) {
-                generateFragmentBindAndUnbind();
+                generateFragmentInit();
             }
         }
 
-        private void generateActivityBind() {
-            if (mClass.findMethodsByName("onCreate", false).length == 0) {
-                // Add an empty stub of onCreate()
-                StringBuilder method = new StringBuilder();
-                method.append("@Override protected void onCreate(android.os.Bundle savedInstanceState) {\n");
-                method.append("super.onCreate(savedInstanceState);\n");
-                method.append("\t// TODO: add setContentView(...) invocation\n");
-//                method.append(butterKnife.getCanonicalBindStatement());
-                method.append("(this);\n");
-                method.append("}");
-
-                mClass.add(mFactory.createMethodFromText(method.toString(), mClass));
-            } else {
-                PsiMethod onCreate = mClass.findMethodsByName("onCreate", false)[0];
-                for (PsiStatement statement : onCreate.getBody().getStatements()) {
+        private void generateActivityInit() {
+            PsiMethod method = PsiTreeUtil.getParentOfType(mElement, PsiMethod.class);
+            if (method != null && method.getBody() != null) {
+                for (PsiStatement statement : method.getBody().getStatements()) {
                     // Search for setContentView()
                     if (statement.getFirstChild() instanceof PsiMethodCallExpression) {
-                        PsiReferenceExpression methodExpression
-                                = ((PsiMethodCallExpression) statement.getFirstChild())
-                                .getMethodExpression();
-                        // Insert ButterKnife.inject()/ButterKnife.bind() after setContentView()
+                        PsiReferenceExpression methodExpression = ((PsiMethodCallExpression) statement.getFirstChild()).getMethodExpression();
                         if (methodExpression.getText().equals("setContentView")) {
-                            onCreate.getBody().addAfter(mFactory.createStatementFromText(
-                                    "initViews();", mClass), statement);
+                            method.getBody().addAfter(mFactory.createStatementFromText("initViews();", mClass), statement);
                             break;
                         }
                     }
                 }
             }
+            StringBuilder initMethod = new StringBuilder();
+            initMethod.append("private void initViews() {");
+            mSubViewItems.stream().filter(SubViewItem::isSelected).forEach(subViewItem -> {
+                initMethod.append(subViewItem.getFieldName()).append(" = ")
+                        .append("(")
+                        .append(subViewItem.getClassName())
+                        .append(")")
+                        .append("findViewById(")
+                        .append(subViewItem.getFullID())
+                        .append(");");
+                if (subViewItem.hasClickEvent()) {
+                    initMethod.append(subViewItem.getFieldName())
+                            .append(".setOnClickListener(this);");
+                }
+            });
+            initMethod.append("}");
+            mClass.add(mFactory.createMethodFromText(initMethod.toString(), mClass));
         }
 
-        private void generateFragmentBindAndUnbind() {
-            boolean generateUnbinder = false;
-            String unbinderName = null;
-
-            // onCreateView() doesn't exist, let's create it
-            if (mClass.findMethodsByName("onCreateView", false).length == 0) {
-                // Add an empty stub of onCreateView()
-                StringBuilder method = new StringBuilder();
-                method.append("@Override public View onCreateView(android.view.LayoutInflater inflater, android.view.ViewGroup container, android.os.Bundle savedInstanceState) {\n");
-                method.append("\t// TODO: inflate a fragment view\n");
-                method.append("android.view.View rootView = super.onCreateView(inflater, container, savedInstanceState);\n");
-//                if (butterKnife.isUsingUnbinder()) {
-//                    // generate new unbinder
-//                    generateUnbinder = true;
-//                     unbinderName = getNameForUnbinder(butterKnife);
-//                    method.append(unbinderName);
-//                    method.append(" = ");
-//                }
-//                method.append(butterKnife.getCanonicalBindStatement());
-                method.append("(this, rootView);\n");
-                method.append("return rootView;\n");
-                method.append("}");
-
-                mClass.add(mFactory.createMethodFromText(method.toString(), mClass));
-            } else {
-                // onCreateView() exists, let's update it with an inject/bind statement
-                PsiMethod onCreateView = mClass.findMethodsByName("onCreateView", false)[0];
-                for (PsiStatement statement : onCreateView.getBody().getStatements()) {
+        private void generateFragmentInit() {
+            PsiMethod method = PsiTreeUtil.getParentOfType(mElement, PsiMethod.class);
+            if (method != null && method.getBody() != null) {
+                for (PsiStatement statement : method.getBody().getStatements()) {
                     if (statement instanceof PsiReturnStatement) {
-                        String returnValue = ((PsiReturnStatement) statement).getReturnValue().getText();
-                        // there's layout inflatiion
-                        if (returnValue.contains("R.layout")) {
-                            onCreateView.getBody().addBefore(mFactory.createStatementFromText("android.view.View view = " + returnValue + ";", mClass), statement);
-                            StringBuilder bindText = new StringBuilder();
-//                            if (butterKnife.isUsingUnbinder()) {
-//                                // generate new unbinder
-//                                generateUnbinder = true;
-//                                unbinderName = getNameForUnbinder(butterKnife);
-//                                bindText.append(unbinderName);
-//                                bindText.append(" = ");
-//                            }
-//                            bindText.append(butterKnife.getCanonicalBindStatement());
-                            bindText.append("(this, view);");
-                            PsiStatement bindStatement = mFactory.createStatementFromText(bindText.toString(), mClass);
-                            onCreateView.getBody().addBefore(bindStatement, statement);
-                            statement.replace(mFactory.createStatementFromText("return view;", mClass));
-                        } else {
-                            // Insert ButterKnife.inject()/ButterKnife.bind() before returning a view for a fragment
-                            StringBuilder bindText = new StringBuilder();
-//                            if (butterKnife.isUsingUnbinder()) {
-//                                // generate new unbinder
-//                                generateUnbinder = true;
-//                                unbinderName = getNameForUnbinder(butterKnife);
-//                                bindText.append(unbinderName);
-//                                bindText.append(" = ");
-//                            }
-//                            bindText.append(butterKnife.getCanonicalBindStatement());
-                            bindText.append("(this, ");
-                            bindText.append(returnValue);
-                            bindText.append(");");
-                            PsiStatement bindStatement = mFactory.createStatementFromText(bindText.toString(), mClass);
-                            onCreateView.getBody().addBefore(bindStatement, statement);
+                        PsiExpression returnValue = ((PsiReturnStatement) statement).getReturnValue();
+                        if (returnValue != null) {
+                            String returnText = returnValue.getText();
+                            if (returnText.contains("R.layout")) {
+                                method.getBody().addBefore(mFactory.createStatementFromText("android.view.View view = " + returnText + ";", mClass), statement);
+                                method.getBody().addBefore(mFactory.createStatementFromText("initViews(view);", mClass), statement);
+                                statement.replace(mFactory.createStatementFromText("return view;", mClass));
+                            } else {
+                                method.getBody().addBefore(mFactory.createStatementFromText("initViews(" + returnText + ");", mClass), statement);
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }
+            StringBuilder initMethod = new StringBuilder();
+            initMethod.append("private void initViews(android.view.View rootView) {");
+            mSubViewItems.stream().filter(SubViewItem::isSelected).forEach(subViewItem -> {
+                initMethod.append(subViewItem.getFieldName()).append(" = ")
+                        .append("(")
+                        .append(subViewItem.getClassName())
+                        .append(")")
+                        .append("rootView.findViewById(")
+                        .append(subViewItem.getFullID())
+                        .append(");");
+                if (subViewItem.hasClickEvent()) {
+                    initMethod.append(subViewItem.getFieldName())
+                            .append(".setOnClickListener(this);");
+                }
+            });
+            initMethod.append("}");
+            mClass.add(mFactory.createMethodFromText(initMethod.toString(), mClass));
         }
     }
 }
+

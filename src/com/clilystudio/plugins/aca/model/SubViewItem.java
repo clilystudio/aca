@@ -52,9 +52,9 @@ public class SubViewItem {
         String rPrefix;
 
         if (mIsAndroidNS) {
-            rPrefix = "android.R.mId.";
+            rPrefix = "android.R.id.";
         } else {
-            rPrefix = "R.mId.";
+            rPrefix = "R.id.";
         }
 
         fullID.append(rPrefix);
