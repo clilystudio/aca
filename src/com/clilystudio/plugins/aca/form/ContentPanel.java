@@ -470,4 +470,16 @@ public class ContentPanel extends JPanel {
             }
         }
     }
+
+    public interface ICancelListener {
+        void onCancel();
+    }
+
+    public interface IConfirmListener {
+        void onConfirm(Project project, Editor editor, ArrayList<SubViewItem> subViewItems, String fieldNamePrefix, boolean createHolder);
+    }
+
+    interface OnCheckBoxStateChangedListener {
+        void changeState(boolean checked);
+    }
 }

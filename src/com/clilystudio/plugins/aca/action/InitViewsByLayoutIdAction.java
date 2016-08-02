@@ -1,8 +1,6 @@
 package com.clilystudio.plugins.aca.action;
 
 import com.clilystudio.plugins.aca.form.ContentPanel;
-import com.clilystudio.plugins.aca.form.ICancelListener;
-import com.clilystudio.plugins.aca.form.IConfirmListener;
 import com.clilystudio.plugins.aca.model.SubViewItem;
 import com.clilystudio.plugins.aca.utils.Utils;
 import com.intellij.codeInsight.CodeInsightActionHandler;
@@ -25,7 +23,7 @@ import java.util.ArrayList;
 /**
  * Created by ShengGL on 2016/7/29.
  */
-public class InitViewsByLayoutIdAction extends BaseGenerateAction implements IConfirmListener, ICancelListener {
+public class InitViewsByLayoutIdAction extends BaseGenerateAction implements ContentPanel.IConfirmListener, ContentPanel.ICancelListener {
 
     private JFrame mDialog;
 
